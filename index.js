@@ -2,20 +2,43 @@
 
 const BN = require('bn.js')
 const config = require('config')
-const fs = require('fs')
-const { parseAsync } = require('json2csv')
-const Web3 = require('web3')
-
-const lpStakingPoolAbi = require('./src/abi/masterChef.json')
-const { getRewardsForAllEpoch } = require('./src/calculateRewards')
-const onsenData = require('./src/onsenData')
-
 const args = require('minimist')(process.argv.slice(2))
-
 const nodeUrl = args.u || config.get('nodeUrl')
 const rewardsStartBlock = args.s || parseInt(config.get('rewardsStartBlock'))
 const rewardsEndBlock = args.e || parseInt(config.get('rewardsEndBlock'))
+const mnemonic = args.m || process.env.MNEMONIC
 
+// Make +30 days as default expiry date
+const date = new Date()
+date.setDate(date.getDate() + 30)
+const defaultExpiryDate = date.toISOString().split('T')[0] // "YYYY-MM-DD"
+const expiryDate = args.d || defaultExpiryDate
+const localTest = args.l || false
+config.nodeUrl = nodeUrl
+config.rewardsStartBlock = rewardsStartBlock
+config.rewardsEndBlock = rewardsEndBlock
+config.mnemonic = mnemonic
+config.expiryDate = expiryDate
+config.localTest = localTest
+
+const fs = require('fs')
+const { parseAsync } = require('json2csv')
+const Web3 = require('web3')
+const path = require('path')
+const appRoot = require('app-root-path')
+
+const lpStakingPoolAbi = require('./src/abi/masterChef.json')
+const { getRewardsForAllEpoch } = require('./src/calculateRewards')
+const { createDataSet } = require('./src/create-dataset')
+const { createClaimGroup } = require('./src/create-claim-group')
+const onsenData = require('./src/onsenData')
+const dataDirectory = 'data'
+const rewardFileName = `rewards-${rewardsStartBlock}-${rewardsEndBlock}.json`
+const rewardFilePath = path.join(appRoot.path, dataDirectory, rewardFileName)
+
+const dataSetFileName = `dataset-${rewardsStartBlock}-${rewardsEndBlock}.json`
+const dataSetFilePath = path.join(appRoot.path, dataDirectory, dataSetFileName)
+console.log(`Running as testing? : ${localTest}`)
 console.log('Rewards Start Block:', rewardsStartBlock)
 console.log('Rewards End Block:', rewardsEndBlock)
 
@@ -36,10 +59,10 @@ function onlyUnique(value, index, self) {
 function writeEpochRewards(allEpochRewards) {
   const fields = ['address', 'balance', 'epochEnd', 'rewards']
   allEpochRewards.forEach(function (epochRewards) {
-    const fileName = `./output/${epochRewards[0].epochEnd}.csv`
-    console.log('Writing rewards data to', fileName)
+    const EpochfileName = `./output/${epochRewards[0].epochEnd}.csv`
+    console.log('Writing epoch rewards data to', EpochfileName)
     return parseAsync(epochRewards, { fields }).then(csvData =>
-      fs.writeFileSync(fileName, csvData)
+      fs.writeFileSync(EpochfileName, csvData)
     )
   })
   return allEpochRewards
@@ -77,10 +100,9 @@ function writeConsolidateRewards(allEpochRewards) {
   console.log('Total rewards to distibute:', totalRewards())
   console.log('Calculated total rewards:', calculateRewards.toString())
 
-  const fileName = `./rewards-${rewardsStartBlock}-${rewardsEndBlock}.json`
-  console.log('Writing consolidated rewards data to', fileName)
+  console.log('Writing consolidated rewards data to', rewardFilePath)
 
-  fs.writeFileSync(fileName, JSON.stringify(accountsList, null, 2))
+  fs.writeFileSync(rewardFilePath, JSON.stringify(accountsList, null, 2))
   // Just to terminate the process once done
   setTimeout(() => process.exit(0), 3000)
 }
@@ -115,8 +137,21 @@ async function getOnsenRewards() {
     })
 }
 
-getOnsenRewards()
-  // if you want data for each epoch, uncomment below line
-  // .then(writeEpochRewards)
-  .then(writeConsolidateRewards)
-  .catch(e => console.error('Error while calculating rewards', e))
+function start() {
+  getOnsenRewards()
+    // if you want data for each epoch, uncomment below line
+    // .then(writeEpochRewards)
+    .then(writeConsolidateRewards)
+    .then(function () {
+      return createDataSet(rewardFilePath, dataSetFilePath).then(function () {
+        console.log('data file created')
+        return createClaimGroup(dataSetFilePath).then(function () {
+          console.log('Claim group created.')
+        })
+      })
+    })
+    .catch(e => console.error('Error while calculating rewards', e))
+}
+
+// Start rewards generation process here.
+start()

@@ -1,0 +1,28 @@
+#!/bin/bash
+
+set -e
+
+# shellcheck disable=SC1091
+[ -f .env ] && . .env
+
+[ ! -d node_modules ] && npm ci
+
+scripts/kill-ganache-cli
+
+# Default values
+node_url='wss://af68cec7d3a5dbbe4d5b65e4663225:7711bcd7a76297e861732906cf2bc0@random-impulse-student.bloqcloudcluster.com:8546'
+mnemonic="opera tired scrap latin mosquito wall file diesel mad aware one merry"
+
+
+# If env is not empty use value from env
+if [ -n "$NODE_URL" ]; then
+    node_url=$NODE_URL
+fi
+
+if [ -n "$1" ]; then
+    echo $1
+    node_url="$node_url@$1"
+fi
+
+# caller script will pass --quiet param as $2
+npx ganache-cli --fork "$node_url" --host 0.0.0.0 --mnemonic "$mnemonic" -e 10000 --quiet &

@@ -25,7 +25,14 @@ export REWARDS_END_BLOCK="eth_block_number"
 ```
 - Using command line args (which take precedence over the other two methods)
 ```bash
-$ node index.js -s <start_block_num> -e <end_block_num> -u <node_url>
+node index.js -s <start_block_num> -e <end_block_num> -u <node_url> -m <mnemonic> -d <date in yyyy-mm-dd>
+```
+
+Local Testing example - use `-l` option for local test run.
+```
+npm i
+npm run fork
+node index.js -s 12194440 -e 12240161 -u "wss://af68cec7d3a5dbbe4d5b65e4663225:7711bcd7a76297e861732906cf2bc0@random-impulse-student.bloqcloudcluster.com:8546" -m "opera tired scrap latin mosquito wall file diesel mad aware one merry" -d "2021-12-31" -l
 ```
 
 3. Verify that default properties are valid for you case, if not use env var or `local.json` to override them.

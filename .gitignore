@@ -8,3 +8,4 @@ local.json
 *.env*
 *.idea
 *.iml
+.vscode/
