@@ -23,21 +23,25 @@ if (title && title.startsWith(titlePrefix)) {
       fs.mkdirSync(tempDirectory)
       console.log(`Created ${tempDirectory} directory.`)
     }
-    return start().then(function () {
-      const filename = `dataset-${process.env.REWARDS_START_BLOCK}-${process.env.REWARDS_END_BLOCK}.json`
-      console.log(`Generated file: ${tempDirectory}/${filename}`)
-      const originalDataFileContent = fs.readFileSync(`data/${filename}`)
-      const tempDataFileContent = fs.readFileSync(
-        `${tempDirectory}/${filename}`
-      )
-      if (originalDataFileContent.equals(tempDataFileContent)) {
-        msg = `Reward file: ${filename} is valid.`
-      } else {
-        msg = `Can't verify reward file: ${filename}`
-        core.setFailed(msg)
-      }
-      console.log(msg)
-    })
+    return start()
+      .then(function () {
+        const filename = `dataset-${process.env.REWARDS_START_BLOCK}-${process.env.REWARDS_END_BLOCK}.json`
+        console.log(`Generated file: ${tempDirectory}/${filename}`)
+        const originalDataFileContent = fs.readFileSync(`data/${filename}`)
+        const tempDataFileContent = fs.readFileSync(
+          `${tempDirectory}/${filename}`
+        )
+        if (originalDataFileContent.equals(tempDataFileContent)) {
+          msg = `Reward file: ${filename} is valid.`
+        } else {
+          msg = `Can't verify reward file: ${filename}`
+          core.setFailed(msg)
+        }
+        console.log(msg)
+      })
+      .catch(function (_error) {
+        core.setFailed(`Something went wrong. Please check logs: ${_error}`)
+      })
   } catch (error) {
     console.log(error)
     core.setFailed(`Something went wrong. Please check logs: ${error}`)

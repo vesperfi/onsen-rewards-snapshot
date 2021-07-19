@@ -6,6 +6,7 @@
 # 3. Need github personal access token to create PR (do not work with ssh keys). Set `TOKEN_FILE` with file with some external path contains PAT.
 #    DO NOT commit `token.txt` file, if committed, github will automatically revoke the PAT.
 # 4. Set `END_BLOCK_DIFF` parameter with desired value. This will be used to calculate endBlock value (Current block No - END_BLOCK_DIFF)
+#     Alternatively set END_BLOCK value in .env
 # 5. Set `REPO` Name - Handy if we want to raise PR in fork for testing.
 
 
@@ -27,11 +28,11 @@ echo "Repo: $REPO"
 
 # TODO REVIWER is not working at present, looks issue with `gh` cli
 if [[ -z $REVIEWER ]]; then
-    REVIEWER="patidarmanoj10,rokso,kevinbeauregard"  
+    REVIEWER="rokso,kevinbeauregard,virendrapatidar"  
 fi
 
 if [[ -z $ASSIGNEE ]]; then
-    ASSIGNEE="virendrapatidar"
+    ASSIGNEE="patidarmanoj10"
 fi
 
 # clean up
@@ -51,13 +52,17 @@ noprefix=${lastFileName/*-/}
 startBlock=${noprefix/.json*/}
 echo "Start Block: $startBlock"
 
-# Get the current block number (as end block number) from block chain.
-endBlockHex=$(curl -s -X POST --data '{"id":1,"jsonrpc":"2.0", "method":"eth_getBlockByNumber","params":["latest", true]}' -H "Content-Type: application/json" -H "Content-Type: application/json" -X POST "$NODE_URL" | jq -r '.result'.'number')
-eval endBlockNow=$(($endBlockHex))
-# echo "End Block Now: $endBlockNow"
+if [[ -z $END_BLOCK ]]; then
+    # Get the current block number (as end block number) from block chain.
+    endBlockHex=$(curl -s -X POST --data '{"id":1,"jsonrpc":"2.0", "method":"eth_getBlockByNumber","params":["latest", true]}' -H "Content-Type: application/json" -H "Content-Type: application/json" -X POST "$NODE_URL" | jq -r '.result'.'number')
+    eval endBlockNow=$(($endBlockHex))
+    # echo "End Block Now: $endBlockNow"
 
-# Get end block number as node might not have synched so can't use current block number.
-eval endBlock=$(($endBlockNow - $END_BLOCK_DIFF))
+    # Get end block number as node might not have synched so can't use current block number.
+    eval endBlock=$(($endBlockNow - $END_BLOCK_DIFF))
+else
+    endBlock=$END_BLOCK
+fi
 echo "End Block: $endBlock"
 
 # Run script to generate data file for onsen rewards
