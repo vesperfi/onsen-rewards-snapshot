@@ -15,7 +15,7 @@
 TOKEN_FILE=~/scripts/token.txt
 # 1 hour old block (Current block No - END_BLOCK_DIFF)
 # Considering 1 hour generate ~250 blocks on average. Using 3 hrs old blocks
-END_BLOCK_DIFF=750
+END_BLOCK_DIFF=250
 
 #Set NODE_URL (mandatory), MNEMONIC, REPO, REVIEWER, ASSIGNEE in .env file.
 . .env
