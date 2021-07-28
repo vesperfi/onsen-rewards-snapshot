@@ -80,8 +80,8 @@ if [ $newFileName != $lastFileName ]; then
     git checkout "$branchName"
     commitMessage="Added dataset start block: ${startBlock}, end block: ${endBlock}"
     # Add and commit only new data file generated
-    git add "data/$newFileName"
-    git commit -m  "$commitMessage" "data/$newFileName"
+    git add .
+    git commit -m  "$commitMessage"
     git push --set-upstream origin "$branchName"
 
     # Create a new PR using github cli and add reviewers.
