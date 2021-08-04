@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 'use strict'
 require('dotenv').config()
+const BN = require('bn.js')
 const createErc20 = require('../packages/erc-20-lib')
 const fetch = require('node-fetch')
 const HDWalletProvider = require('@truffle/hdwallet-provider')
@@ -47,14 +48,17 @@ function createClaimGroup(datasetUrl, expiryDays) {
       const root = createMerkleBox.util.bufferToHex(
         createMerkleBox.util.calcMerkleTree(recipients).getRoot()
       )
-      return Promise.all([
-        total,
-        root,
-        createErc20(web3, tokenAddress, { from, gasPrice }).approve(
-          merkleBoxAddress,
-          total
-        )
-      ])
+      const erc20 = createErc20(web3, tokenAddress, { from, gasPrice })
+      return erc20.allowance(from, merkleBoxAddress).then(function (allowance) {
+        if (new BN(allowance).lt(new BN(total))) {
+          return Promise.all([
+            total,
+            root,
+            erc20.approve(merkleBoxAddress, total)
+          ])
+        }
+        return [total, root]
+      })
     })
     .then(([total, root]) =>
       merkleBox.newClaimsGroup(
