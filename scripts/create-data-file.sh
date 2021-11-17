@@ -28,7 +28,7 @@ echo "Repo: $REPO"
 
 # TODO REVIWER is not working at present, looks issue with `gh` cli
 if [[ -z $REVIEWER ]]; then
-    REVIEWER="rokso,kevinbeauregard,virendrapatidar"  
+    REVIEWER="rokso,kevinbeauregard,virendrapatidar,jcvernaleo"  
 fi
 
 if [[ -z $ASSIGNEE ]]; then
