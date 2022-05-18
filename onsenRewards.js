@@ -42,10 +42,10 @@ function onlyUnique(value, index, self) {
 function writeEpochRewards(allEpochRewards) {
   const fields = ['address', 'balance', 'epochEnd', 'rewards']
   allEpochRewards.forEach(function (epochRewards) {
-    const epochfileName = `./output/${epochRewards[0].epochEnd}.csv`
-    console.log('Writing epoch rewards data to', epochfileName)
+    const epochFileName = `./output/${epochRewards[0].epochEnd}.csv`
+    console.log('Writing epoch rewards data to', epochFileName)
     return parseAsync(epochRewards, { fields }).then(csvData =>
-      fs.writeFileSync(epochfileName, csvData)
+      fs.writeFileSync(epochFileName, csvData)
     )
   })
   return allEpochRewards
@@ -87,37 +87,66 @@ function writeConsolidateRewards(allEpochRewards) {
   fs.writeFileSync(rewardFile, JSON.stringify(accountsList, null, 2))
 }
 
-async function getOnsenRewards() {
+async function getOnsenStakers() {
   const web3 = new Web3(nodeUrl)
   const lpStakingPool = new web3.eth.Contract(
     lpStakingPoolAbi,
     onsenData.lpStakingPoolAddress
   )
-
-  return lpStakingPool
-    .getPastEvents('Deposit', {
+  const promises = []
+  let startBlock = rewardsStartBlock
+  // Read deposit event during reward period
+  while (startBlock < rewardsEndBlock) {
+    let endBlock = startBlock + epochDuration
+    if (endBlock > rewardsEndBlock) {
+      endBlock = rewardsEndBlock
+    }
+    const promise = lpStakingPool.getPastEvents('Deposit', {
       filter: { pid: onsenData.poolId },
-      fromBlock: onsenData.pair.deployBlock,
-      toBlock: rewardsEndBlock,
+      fromBlock: startBlock,
+      toBlock: endBlock,
       address: lpStakingPool.address
     })
+    promises.push(promise)
+    startBlock = endBlock
+  }
+
+  return Promise.all(promises)
     .then(function (depositEvents) {
-      console.log('Total deposit events', depositEvents.length)
-      const addressList = depositEvents.map(event => event.returnValues.user)
-      const uniqueList = addressList.filter(onlyUnique)
+      // depositEvents is array of arrays
+      const filteredEvents = depositEvents
+        .filter(eventArray => eventArray.length > 0)
+        .flat()
+      console.log('New deposit events', filteredEvents.length)
+      return filteredEvents.map(event => event.returnValues.user)
+    })
+    .then(function (newStakers) {
+      // Get last rewards file name
+      const fileName = fs
+        .readdirSync(dataDirectory)
+        .filter(value => value.includes(`${rewardsStartBlock}.json`))[0]
+      // Read last rewards data file
+      const fileContent = JSON.parse(fs.readFileSync(`data/${fileName}`))
+      const lastRewardsRecipient = fileContent.map(data => data.account)
+      // Merge last reward recipients and new stakers
+      const totalStakers = lastRewardsRecipient.concat(newStakers)
+      const uniqueList = totalStakers.filter(onlyUnique)
       console.log('Unique address count', uniqueList.length)
       return uniqueList
     })
-    .then(function (addresses) {
-      const _rewardsPerEpoch = rewardsPerEpoch()
-      console.log('_rewardsPerEpoch', _rewardsPerEpoch)
-      return getRewardsForAllEpoch(
-        addresses,
-        rewardsStartBlock,
-        rewardsEndBlock,
-        _rewardsPerEpoch
-      )
-    })
+}
+
+async function getOnsenRewards() {
+  return getOnsenStakers().then(function (addresses) {
+    const _rewardsPerEpoch = rewardsPerEpoch()
+    console.log('rewardsPerEpoch', _rewardsPerEpoch)
+    return getRewardsForAllEpoch(
+      addresses,
+      rewardsStartBlock,
+      rewardsEndBlock,
+      _rewardsPerEpoch
+    )
+  })
 }
 
 async function start() {
